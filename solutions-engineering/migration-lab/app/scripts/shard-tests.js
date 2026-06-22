@@ -31,7 +31,14 @@ async function main() {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const scale = Number(process.env.TEST_DURATION_SCALE || 0.15);
 
-  const tests = manifest.filter((_, idx) => idx % total === index - 1);
+  const shardTotals = new Array(total).fill(0);
+  const shardAssignments = new Map();
+  for (const test of [...manifest].sort((a, b) => b.durationMs - a.durationMs)) {
+    const min = shardTotals.indexOf(Math.min(...shardTotals));
+    shardAssignments.set(test, min);
+    shardTotals[min] += test.durationMs;
+  }
+  const tests = manifest.filter((test) => shardAssignments.get(test) === index - 1);
   const expectedDuration = tests.reduce((sum, test) => sum + test.durationMs, 0);
 
   console.log(`running unit test shard ${index}/${total}`);
